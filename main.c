@@ -62,11 +62,56 @@ unsigned char last_din_value = 0;
 
 unsigned char cd_deck_selection_active = 0;
 
-//char* selected_fx = "FLANGER";
+const char effect_names[42][8] = {
+    "FLANGER",
+    "PHASER ",
+    "FILT:92",
+    "DELAY  ",
+    "BEATMSR",
+    "RVGRAIN",
+    "TT FX  ",
+    "REVERB ",
+    "D LOFI ",
+    "FLANG P",
+    "FLANG F",
+    "PHASERP",
+    "PHASERF",
+    "FILTLFO",
+    "FILTPLS",
+    "FILTER ",
+    "F:92LFO",
+    "F:92PLS",
+    "GATER  ",
+    "ICEVERB",
+    "RMODLTR",
+    "MULHDRV",
+    "TRANSST",
+    "REVRBT3",
+    "DELAYT3",
+    "BEATSLI",
+    "FORMFLT",
+    "PEAKFLT",
+    "TAPEDLY",
+    "RAMPDLY",
+    "AUTOBNC",
+    "BOUNCER",
+    "WRMHOLE",
+    "ZZZURP ",
+    "LASERSL",
+    "GRPHASE",
+    "STRTCHF",
+    "B-O-M  ",
+    "PLARWND",
+    "STRTCHS",
+    "DRKMTTR",
+    "EVENTHZ",
+    "FLIGHTT"
+};
 
+unsigned char selected_fxs[3] = {0,0,0};
 unsigned char selected_fx_unit = 1;
 
-//int fx_unit_amount[2];
+int fx_unit_amount[4] = {0,0,0,0};
 
 #define RED 0
 #define BLUE 1
@@ -122,6 +167,14 @@ void setFxLedsTo(unsigned char state) {
 
 unsigned char getPinFromEvent(unsigned char evnt1) {
     return ((evnt1 / 4) * 4) - (evnt1 % 4) + 3;
+}
+
+unsigned char getOffsetForRow(unsigned char row) {
+    switch (row) {
+        case 0: return 0x0;
+        case 1: return 0x40;
+        default: return 0x50;
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -195,8 +248,8 @@ void DISPLAY_Init(void) __wparam
 /////////////////////////////////////////////////////////////////////////////
 void DISPLAY_Tick(void) __wparam
 {
-//    unsigned char i = 0;
-//    unsigned char j = 0;
+    unsigned char i = 0;
+    unsigned char j = 0;
     unsigned char pin = last_din_pin != 0 ? last_din_pin : last_dout_pin;
     // do nothing if no update has been requested
     if( !app_flags.DISPLAY_UPDATE_REQ )
@@ -205,18 +258,20 @@ void DISPLAY_Tick(void) __wparam
     // clear request
     app_flags.DISPLAY_UPDATE_REQ = 0;
     
+    MIOS_LCD_CursorSet(0x0);
+    
     for (i = 0; i < 2; ++i) {
-        MIOS_LCD_CursorSet(0x40 * i + 0);
+        MIOS_LCD_CursorSet(getOffsetForRow(i));
         MIOS_LCD_PrintCString("FX");
         MIOS_LCD_PrintBCD1(i + 1);
-        if (selected_fx_unit == 1) {
+        if (selected_fx_unit == i) {
             MIOS_LCD_PrintChar('*');
         } else {
             MIOS_LCD_PrintChar(' ');
         }
         
-        for (j = 0; j < 4; ++j) {
-            if (fx_unit_amount[i] < j * 32) {
+        for (j = 0; j <= 3; ++j) {
+            if (fx_unit_amount[i] > 0 && fx_unit_amount[i] + 1 > j * 32) {
                 MIOS_LCD_PrintChar('*');
             } else {
                 break;
@@ -224,6 +279,10 @@ void DISPLAY_Tick(void) __wparam
         }
     }
     
+    for (i = 0; i <= 3; ++i) {
+        MIOS_LCD_CursorSet(getOffsetForRow(i) + 9);
+        MIOS_LCD_PrintCString(effect_names[selected_fxs[i]]);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -235,6 +294,8 @@ void MPROC_NotifyReceivedEvnt(unsigned char evnt0, unsigned char evnt1, unsigned
     unsigned char i = 0;
     unsigned char start = 0;
     unsigned char state = 0;
+    unsigned char fx_number = 0;
+    unsigned char selected_fx = 0;
     
     if (evnt1 == 34) {
         // All FX knob leds
@@ -271,6 +332,34 @@ void MPROC_NotifyReceivedEvnt(unsigned char evnt0, unsigned char evnt1, unsigned
         MIOS_DOUT_PinSet(pin, getPinStateForDeckEvent(evnt0, evnt2));
         last_dout_pin = evnt1;
         
+    } else if ( evnt0 == 0xb0 )
+        if ( evnt1 == 3 ) {
+            // Modifier #3 aka effect selection
+            selected_fx_unit = evnt2 / 18;
+            
+        } else if ( evnt1 >= 24 && evnt1 <= 26 ) {
+            // Selected effect
+            fx_number = evnt1 - 24;
+        
+            // It is tedious to store the effect number to effect name mappings and
+            // thus this code assumes that the 41 effects in Traktor are evenly spaced...
+            selected_fx = evnt2 * 41 / 127;
+        
+            // ... and because they are not we need to increase the fx number after RingModulator
+            if (evnt2 >= 64 ) {
+                selected_fx++;
+            }
+        
+            selected_fxs[fx_number] = selected_fx;
+            
+        } else if ( evnt1 == 27 ) {
+            // Dry wet adjust
+            fx_unit_amount[selected_fx_unit] = evnt2;
+            
+        }
+    
+        last_dout_pin = evnt2;
+
     } else {
         // Multicolor DIN control
         pin = evnt2 / 25 * 3;
