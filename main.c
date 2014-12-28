@@ -132,9 +132,6 @@ void Init(void) __wparam
 {
     unsigned char i = 0;
     
-    //fx_unit_amount[0] = 64;
-    //fx_unit_amount[1] = 90;
-    
     MIOS_LCD_TypeSet(0x07, 0x37, 0x24);
     
     // set shift register update frequency
@@ -153,7 +150,7 @@ void Init(void) __wparam
     MIOS_AIN_UnMuxed();      // no AINX4 modules are used
     MIOS_AIN_DeadbandSet(7); // 7bit resolution is used
     
-    // set speed mode for 8 encoders
+    // set speed mode for encoders
     for(i=0; i<15; ++i) {
         // available speed modes: SLOW, NORMAL and FAST
         MIOS_ENC_SpeedSet(i, MIOS_ENC_SPEED_NORMAL, 2); // encoder, speed mode, divider
@@ -188,15 +185,6 @@ void DISPLAY_Init(void) __wparam
     // clear screen
     MIOS_LCD_Clear();
     
-    // print static messages
-    MIOS_LCD_Clear();
-    MIOS_LCD_CursorSet(0x00);
-    MIOS_LCD_PrintCString("   Concussion   ");
-    //    MIOS_LCD_CursorSet(0x40);
-    //    MIOS_LCD_PrintCString("----------------");
-    MIOS_LCD_CursorSet(0x50);
-    MIOS_LCD_PrintCString("     Kluster    ");
-    
     // request display update
     app_flags.DISPLAY_UPDATE_REQ = 1;
 }
@@ -217,7 +205,6 @@ void DISPLAY_Tick(void) __wparam
     // clear request
     app_flags.DISPLAY_UPDATE_REQ = 0;
     
-    /*
     for (i = 0; i < 2; ++i) {
         MIOS_LCD_CursorSet(0x40 * i + 0);
         MIOS_LCD_PrintCString("FX");
@@ -237,31 +224,6 @@ void DISPLAY_Tick(void) __wparam
         }
     }
     
-    for (i = 0; i < 4; ++i) {
-        MIOS_LCD_CursorSet(0x40 * i + 9);
-        MIOS_LCD_PrintCString("FLANGER");
-    }*/
-
-    
-    // print status of DIN
-    MIOS_LCD_CursorSet(0x40 + 0);
-    MIOS_LCD_PrintBCD3(pin);
-    
-    MIOS_LCD_PrintChar(' ');
-    
-    MIOS_LCD_PrintBCD2((pin >> 3) + 1);
-    
-    MIOS_LCD_PrintChar(' ');
-    MIOS_LCD_PrintChar('D');
-    MIOS_LCD_PrintBCD1(pin & 7);
-    
-    MIOS_LCD_PrintChar(' ');
-    MIOS_LCD_PrintChar(MIOS_DIN_PinGet(last_din_pin) ? 'o' : '*');
-    MIOS_LCD_PrintChar(' ');
-    MIOS_LCD_PrintBCD3(last_din_value);
-    
-    last_din_pin = 0;
-    last_dout_pin = 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////
